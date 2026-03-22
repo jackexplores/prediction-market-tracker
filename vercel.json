@@ -1,0 +1,20 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/sync-leaderboard",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-activity?tier=top",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-activity?tier=extended",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-kalshi",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}
