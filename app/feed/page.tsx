@@ -44,8 +44,8 @@ export default async function FeedPage() {
             <h1 className="text-[28px] sm:text-[36px] font-bold text-[#0D0D0D] tracking-tight">
               Trade Feed
             </h1>
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#F0FFF0] border border-[#00C805]/20">
-              <span className="live-dot w-1.5 h-1.5 rounded-full bg-[#00C805]" />
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F0FFF0] border border-[#00C805]/20">
+              <span className="live-dot w-1.5 h-1.5 rounded-full bg-[#00C805] shrink-0" />
               <span className="text-[11px] font-semibold text-[#00C805]">LIVE</span>
             </div>
           </div>

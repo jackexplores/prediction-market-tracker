@@ -39,12 +39,12 @@ body {
 }
 
 @keyframes live-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.1; transform: scale(0.55); }
 }
 
 .live-dot {
-  animation: live-pulse 2s ease-in-out infinite;
+  animation: live-pulse 0.75s ease-in-out infinite;
 }
 
 .table-row-hover {

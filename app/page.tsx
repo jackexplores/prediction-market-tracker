@@ -27,7 +27,7 @@ export default async function LeaderboardPage() {
       <div className="border-b border-[#E8E8E8] bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <h1 className="text-[28px] sm:text-[36px] font-bold text-[#0D0D0D] tracking-tight mb-2">
-            Smart Money Leaderboard
+            Leaderboard
           </h1>
           <p className="text-[15px] text-[#8C8C8C] max-w-xl">
             The highest-performing Polymarket traders, ranked by realised profit.

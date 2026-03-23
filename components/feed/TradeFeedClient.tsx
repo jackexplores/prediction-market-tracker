@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import * as Select from '@radix-ui/react-select'
 import { Trade } from '@/lib/types'
 import { formatCurrency, truncateWallet, timeAgo, cn } from '@/lib/utils'
 
@@ -21,6 +22,72 @@ interface TradeFeedClientProps {
   initialTrades: Trade[]
   trackedTraders: TrackedTrader[]
 }
+
+// ── Radix Select helpers ──────────────────────────────────────────────────────
+
+function ChevronDown() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+      <path d="M2 3.5L5.5 7L9 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
+function CheckMark() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+      <path d="M1.5 5.5L4 8L9.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
+function StyledSelect({
+  value,
+  onValueChange,
+  children,
+}: {
+  value: string
+  onValueChange: (v: string) => void
+  children: React.ReactNode
+}) {
+  return (
+    <Select.Root value={value} onValueChange={onValueChange}>
+      <Select.Trigger className="inline-flex items-center gap-2 text-[13px] border border-[#E8E8E8] rounded-full px-3 py-1.5 text-[#0D0D0D] bg-white outline-none cursor-pointer whitespace-nowrap transition-colors hover:border-[#0D0D0D] data-[state=open]:border-[#0D0D0D] focus:border-[#0D0D0D]">
+        <Select.Value />
+        <Select.Icon className="text-[#8C8C8C] ml-0.5">
+          <ChevronDown />
+        </Select.Icon>
+      </Select.Trigger>
+      <Select.Portal>
+        <Select.Content
+          position="popper"
+          sideOffset={6}
+          className="z-[200] bg-white rounded-xl border border-[#E8E8E8] shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden min-w-[var(--radix-select-trigger-width)]"
+        >
+          <Select.Viewport className="p-1">
+            {children}
+          </Select.Viewport>
+        </Select.Content>
+      </Select.Portal>
+    </Select.Root>
+  )
+}
+
+function SelectItem({ value, children }: { value: string; children: React.ReactNode }) {
+  return (
+    <Select.Item
+      value={value}
+      className="flex items-center justify-between gap-4 px-3 py-2 text-[13px] text-[#0D0D0D] rounded-lg cursor-pointer select-none outline-none data-[highlighted]:bg-[#F7F7F7] data-[state=checked]:font-medium"
+    >
+      <Select.ItemText>{children}</Select.ItemText>
+      <Select.ItemIndicator className="text-[#00C805]">
+        <CheckMark />
+      </Select.ItemIndicator>
+    </Select.Item>
+  )
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 export function TradeFeedClient({ initialTrades, trackedTraders }: TradeFeedClientProps) {
   const [trades, setTrades] = useState<Trade[]>(initialTrades)
@@ -58,7 +125,7 @@ export function TradeFeedClient({ initialTrades, trackedTraders }: TradeFeedClie
     }
   }, [category, minSize, selectedTrader, trades])
 
-  // Initial load on filter change
+  // Reload on filter change
   useEffect(() => {
     fetchTrades(true)
   }, [category, minSize, selectedTrader]) // eslint-disable-line
@@ -73,7 +140,7 @@ export function TradeFeedClient({ initialTrades, trackedTraders }: TradeFeedClie
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
-        {/* Category */}
+        {/* Category pills */}
         <div className="flex gap-1.5 overflow-x-auto">
           {CATEGORIES.map(c => (
             <button
@@ -86,32 +153,24 @@ export function TradeFeedClient({ initialTrades, trackedTraders }: TradeFeedClie
           ))}
         </div>
 
-        <div className="w-px h-5 bg-[#E8E8E8]" />
+        <div className="w-px h-5 bg-[#E8E8E8] shrink-0" />
 
         {/* Min size */}
-        <select
-          value={minSize}
-          onChange={e => setMinSize(Number(e.target.value))}
-          className="text-[13px] border border-[#E8E8E8] rounded-full px-3 py-1.5 text-[#0D0D0D] bg-white outline-none focus:border-[#0D0D0D] cursor-pointer"
-        >
+        <StyledSelect value={String(minSize)} onValueChange={v => setMinSize(Number(v))}>
           {MIN_SIZES.map(s => (
-            <option key={s.value} value={s.value}>{s.label}</option>
+            <SelectItem key={s.value} value={String(s.value)}>{s.label}</SelectItem>
           ))}
-        </select>
+        </StyledSelect>
 
         {/* Trader filter */}
-        <select
-          value={selectedTrader}
-          onChange={e => setSelectedTrader(e.target.value)}
-          className="text-[13px] border border-[#E8E8E8] rounded-full px-3 py-1.5 text-[#0D0D0D] bg-white outline-none focus:border-[#0D0D0D] cursor-pointer max-w-[160px]"
-        >
-          <option value="all">All Traders</option>
+        <StyledSelect value={selectedTrader} onValueChange={setSelectedTrader}>
+          <SelectItem value="all">All Traders</SelectItem>
           {trackedTraders.map(t => (
-            <option key={t.id} value={t.id}>
+            <SelectItem key={t.id} value={t.id}>
               {t.username ?? truncateWallet(t.wallet_address)}
-            </option>
+            </SelectItem>
           ))}
-        </select>
+        </StyledSelect>
 
         <div className="ml-auto flex items-center gap-3">
           {newCount > 0 && (
@@ -122,6 +181,22 @@ export function TradeFeedClient({ initialTrades, trackedTraders }: TradeFeedClie
               +{newCount} new trades — refresh
             </button>
           )}
+          {/* Manual refresh */}
+          <button
+            onClick={() => fetchTrades(true)}
+            disabled={loading}
+            className="flex items-center gap-1.5 text-[13px] font-medium text-[#8C8C8C] hover:text-[#0D0D0D] transition-colors disabled:opacity-40"
+            title="Refresh"
+          >
+            <svg
+              width="14" height="14" viewBox="0 0 14 14" fill="none"
+              className={loading ? 'animate-spin' : ''}
+            >
+              <path d="M13 7A6 6 0 1 1 7 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              <path d="M7 1L9.5 3.5L7 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
           <span className="text-[12px] text-[#8C8C8C]">
             Updated {timeAgo(lastRefresh)}
           </span>
@@ -132,7 +207,7 @@ export function TradeFeedClient({ initialTrades, trackedTraders }: TradeFeedClie
       {loading ? (
         <FeedSkeleton />
       ) : trades.length === 0 ? (
-        <EmptyFeed />
+        <EmptyFeed onRefresh={() => fetchTrades(true)} />
       ) : (
         <div className="flex flex-col gap-2">
           {trades.map(trade => (
@@ -262,14 +337,17 @@ function FeedSkeleton() {
   )
 }
 
-function EmptyFeed() {
+function EmptyFeed({ onRefresh }: { onRefresh: () => void }) {
   return (
     <div className="card flex flex-col items-center justify-center py-20 text-center">
       <div className="text-4xl mb-4">🔄</div>
       <h3 className="text-[16px] font-semibold text-[#0D0D0D] mb-2">Feed is empty</h3>
-      <p className="text-[14px] text-[#8C8C8C] max-w-sm">
-        Activity is synced from Polymarket every 5 minutes. Data will appear once the first sync completes.
+      <p className="text-[14px] text-[#8C8C8C] max-w-sm mb-6">
+        Activity is synced from Polymarket every 5 minutes. Try refreshing or adjusting your filters.
       </p>
+      <button onClick={onRefresh} className="pill active">
+        Refresh
+      </button>
     </div>
   )
 }

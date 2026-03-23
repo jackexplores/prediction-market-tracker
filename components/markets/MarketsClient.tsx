@@ -1,51 +1,39 @@
 'use client'
 
 import { useState } from 'react'
+import { Market } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
-interface MarketEntry {
-  polymarket: {
-    id: string
-    title: string
-    current_prices: Record<string, number> | null
-    volume: number
-    category: string | null
-    slug_or_ticker: string
-  }
-  kalshi: {
-    id: string
-    title: string
-    current_prices: Record<string, number> | null
-    volume: number
-    slug_or_ticker: string
-  } | null
-  kalshi_stats: {
-    last_yes_price: number | null
-    last_no_price: number | null
-    total_volume: number
-    trade_count: number
-  } | null
-  price_diff_pct: number | null
-}
+const CATEGORIES = ['All', 'Politics', 'Crypto', 'Sports', 'Economics', 'Other']
 
 interface Props {
-  markets: MarketEntry[]
+  markets: Market[]
 }
 
 export function MarketsClient({ markets }: Props) {
-  const [filter, setFilter] = useState<'all' | 'diverged'>('all')
+  const [category, setCategory] = useState('All')
+  const [sortBy, setSortBy] = useState<'volume' | 'price'>('volume')
 
-  const filtered = filter === 'diverged'
-    ? markets.filter(m => (m.price_diff_pct ?? 0) > 5)
-    : markets
+  const filtered = category === 'All'
+    ? markets
+    : markets.filter(m => m.category === category)
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === 'price') {
+      const aYes = a.current_prices?.yes ?? a.current_prices?.YES ?? 0
+      const bYes = b.current_prices?.yes ?? b.current_prices?.YES ?? 0
+      return bYes - aYes
+    }
+    return (b.volume ?? 0) - (a.volume ?? 0)
+  })
 
   if (markets.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
         <div className="text-4xl mb-4">📈</div>
-        <h3 className="text-[16px] font-semibold text-[#0D0D0D] mb-2">No dual-listed markets yet</h3>
+        <h3 className="text-[16px] font-semibold text-[#0D0D0D] mb-2">No markets yet</h3>
         <p className="text-[14px] text-[#8C8C8C] max-w-sm mx-auto">
-          Market data syncs from Polymarket and Kalshi every 15 minutes. Check back shortly.
+          Market data syncs from Polymarket every 15 minutes. Check back shortly.
         </p>
       </div>
     )
@@ -53,134 +41,113 @@ export function MarketsClient({ markets }: Props) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      {/* Filters */}
-      <div className="flex gap-2 mb-6">
-        <button onClick={() => setFilter('all')} className={cn('pill', filter === 'all' && 'active')}>
-          All ({markets.length})
-        </button>
-        <button onClick={() => setFilter('diverged')} className={cn('pill', filter === 'diverged' && 'active')}>
-          Diverged &gt;5% ({markets.filter(m => (m.price_diff_pct ?? 0) > 5).length})
-        </button>
+      {/* Filters + sort */}
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        <div className="flex gap-1.5 overflow-x-auto">
+          {CATEGORIES.map(c => {
+            const count = c === 'All' ? markets.length : markets.filter(m => m.category === c).length
+            return (
+              <button
+                key={c}
+                onClick={() => setCategory(c)}
+                className={cn('pill', category === c && 'active')}
+              >
+                {c} {c !== 'All' && count > 0 && (
+                  <span className="ml-1 opacity-60">({count})</span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-[12px] text-[#8C8C8C]">Sort:</span>
+          <button
+            onClick={() => setSortBy('volume')}
+            className={cn('pill text-[12px]', sortBy === 'volume' && 'active')}
+          >
+            Volume
+          </button>
+          <button
+            onClick={() => setSortBy('price')}
+            className={cn('pill text-[12px]', sortBy === 'price' && 'active')}
+          >
+            YES Price
+          </button>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-3">
-        {filtered.map(m => (
-          <MarketRow key={m.polymarket.id} market={m} />
-        ))}
+      {/* Table */}
+      <div className="card overflow-hidden">
+        {/* Header */}
+        <div className="grid grid-cols-[1fr_90px_70px_90px] gap-4 px-5 py-3 bg-[#F7F7F7] border-b border-[#E8E8E8]">
+          <span className="text-[12px] font-medium text-[#8C8C8C] uppercase tracking-wide">Market</span>
+          <span className="text-[12px] font-medium text-[#8C8C8C] uppercase tracking-wide">Category</span>
+          <span className="text-[12px] font-medium text-[#8C8C8C] uppercase tracking-wide text-right">YES</span>
+          <span className="text-[12px] font-medium text-[#8C8C8C] uppercase tracking-wide text-right">Volume</span>
+        </div>
+
+        {sorted.length === 0 ? (
+          <div className="px-5 py-12 text-center text-[14px] text-[#8C8C8C]">
+            No markets in this category
+          </div>
+        ) : (
+          sorted.map(market => <MarketRow key={market.id} market={market} />)
+        )}
       </div>
 
       <p className="mt-4 text-[12px] text-[#8C8C8C] text-center">
-        Kalshi data for market context only · Not financial advice · Refreshes every 15 min
+        Showing {sorted.length} of {markets.length} markets · Polymarket · Refreshes every 15 min
       </p>
     </div>
   )
 }
 
-function MarketRow({ market }: { market: MarketEntry }) {
-  const { polymarket, kalshi, kalshi_stats, price_diff_pct } = market
-  const isDiverged = (price_diff_pct ?? 0) > 5
-  const isHighDivergence = (price_diff_pct ?? 0) > 10
-
-  const pmYes = polymarket.current_prices?.yes ?? polymarket.current_prices?.YES ?? null
-  const kalshiYes = kalshi_stats?.last_yes_price ?? kalshi?.current_prices?.yes ?? null
-
-  const pmHigher = pmYes && kalshiYes ? pmYes > kalshiYes : null
+function MarketRow({ market }: { market: Market }) {
+  const yesPrice = market.current_prices?.yes ?? market.current_prices?.YES ?? null
+  const vol = market.volume ?? 0
 
   return (
-    <div className={cn(
-      'card px-5 py-4',
-      isHighDivergence && 'ring-1 ring-[#FF5000]/20'
-    )}>
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="text-[14px] font-semibold text-[#0D0D0D] truncate">
-              {polymarket.title}
-            </h3>
-            {isDiverged && (
-              <span className={cn(
-                'shrink-0 px-2 py-0.5 text-[10px] font-bold rounded-full',
-                isHighDivergence
-                  ? 'bg-[#FF5000]/10 text-[#FF5000]'
-                  : 'bg-amber-50 text-amber-600'
-              )}>
-                {isHighDivergence ? '⚡' : '△'} {price_diff_pct?.toFixed(1)}% SPREAD
-              </span>
-            )}
-          </div>
-          {polymarket.category && (
-            <span className="text-[11px] text-[#8C8C8C]">{polymarket.category}</span>
-          )}
-        </div>
+    <a
+      href={`https://polymarket.com/event/${market.slug_or_ticker}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="grid grid-cols-[1fr_90px_70px_90px] gap-4 px-5 py-4 items-center table-row-hover border-b border-[#E8E8E8] last:border-0 transition-colors group"
+    >
+      <span className="text-[14px] font-medium text-[#0D0D0D] truncate group-hover:text-[#0D0D0D] group-hover:underline decoration-[#E8E8E8]">
+        {market.title}
+      </span>
+
+      <span className="text-[11px] text-[#8C8C8C] font-medium truncate">
+        {market.category ?? '—'}
+      </span>
+
+      <div className="text-right">
+        {yesPrice != null ? (
+          <span className={cn(
+            'text-[14px] font-bold tabular-nums',
+            yesPrice >= 0.6 ? 'text-[#00C805]'
+              : yesPrice <= 0.4 ? 'text-[#FF5000]'
+              : 'text-[#0D0D0D]'
+          )}>
+            {(yesPrice * 100).toFixed(0)}¢
+          </span>
+        ) : (
+          <span className="text-[14px] text-[#8C8C8C]">—</span>
+        )}
       </div>
 
-      {/* Price comparison */}
-      <div className="grid grid-cols-[1fr_auto_1fr] gap-4 mt-4 items-center">
-        {/* Polymarket */}
-        <div className="bg-[#F7F7F7] rounded-xl px-4 py-3">
-          <div className="text-[11px] text-[#8C8C8C] font-medium mb-1.5 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#0D0D0D]" />
-            Polymarket
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className={cn(
-              'text-[22px] font-bold',
-              pmHigher === true ? 'text-[#00C805]' : pmHigher === false ? 'text-[#FF5000]' : 'text-[#0D0D0D]'
-            )}>
-              {pmYes != null ? `${(pmYes * 100).toFixed(0)}¢` : '—'}
-            </span>
-            <span className="text-[12px] text-[#8C8C8C]">YES</span>
-          </div>
-          <div className="text-[12px] text-[#8C8C8C] mt-1">
-            Vol: ${(polymarket.volume / 1000).toFixed(0)}K
-          </div>
-        </div>
-
-        {/* Delta */}
-        <div className="text-center shrink-0">
-          {price_diff_pct != null ? (
-            <div>
-              <div className={cn(
-                'text-[13px] font-bold',
-                price_diff_pct > 5 ? 'text-[#FF5000]' : 'text-[#8C8C8C]'
-              )}>
-                {price_diff_pct.toFixed(1)}%
-              </div>
-              <div className="text-[10px] text-[#8C8C8C]">spread</div>
-            </div>
-          ) : (
-            <span className="text-[#8C8C8C] text-[12px]">vs</span>
-          )}
-        </div>
-
-        {/* Kalshi */}
-        <div className="bg-[#F7F7F7] rounded-xl px-4 py-3">
-          <div className="text-[11px] text-[#8C8C8C] font-medium mb-1.5 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-            Kalshi
-          </div>
-          {kalshiYes != null ? (
-            <>
-              <div className="flex items-baseline gap-2">
-                <span className={cn(
-                  'text-[22px] font-bold',
-                  pmHigher === false ? 'text-[#00C805]' : pmHigher === true ? 'text-[#FF5000]' : 'text-[#0D0D0D]'
-                )}>
-                  {(kalshiYes * 100).toFixed(0)}¢
-                </span>
-                <span className="text-[12px] text-[#8C8C8C]">YES</span>
-              </div>
-              {kalshi_stats && (
-                <div className="text-[12px] text-[#8C8C8C] mt-1">
-                  {kalshi_stats.trade_count} trades
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="text-[14px] text-[#8C8C8C]">—</div>
-          )}
-        </div>
+      <div className="text-right">
+        <span className="text-[14px] font-medium text-[#0D0D0D] tabular-nums">
+          {vol >= 1_000_000
+            ? `$${(vol / 1_000_000).toFixed(1)}M`
+            : vol >= 1_000
+            ? `$${(vol / 1_000).toFixed(0)}K`
+            : vol > 0
+            ? `$${vol.toFixed(0)}`
+            : '—'}
+        </span>
       </div>
-    </div>
+    </a>
   )
 }

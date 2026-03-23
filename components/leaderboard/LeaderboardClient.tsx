@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { Trader, TimeWindow, Category } from '@/lib/types'
 import { formatCurrency, formatPercent, truncateWallet, pnlColor, timeAgo } from '@/lib/utils'
@@ -8,10 +8,10 @@ import { Sparkline } from '@/components/leaderboard/Sparkline'
 import { cn } from '@/lib/utils'
 
 const WINDOWS: { value: TimeWindow; label: string }[] = [
-  { value: 'all', label: 'All Time' },
-  { value: '30d', label: '30 Days' },
-  { value: '7d', label: '7 Days' },
   { value: '1d', label: '24 Hours' },
+  { value: '7d', label: '7 Days' },
+  { value: '30d', label: '30 Days' },
+  { value: 'all', label: 'All Time' },
 ]
 
 const CATEGORIES: { value: Category | 'all'; label: string }[] = [
@@ -23,26 +23,31 @@ const CATEGORIES: { value: Category | 'all'; label: string }[] = [
   { value: 'Other', label: 'Other' },
 ]
 
+type TraderWithPeriod = Trader & { period_volume?: number }
+
 interface LeaderboardClientProps {
   initialTraders: Trader[]
 }
 
 export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
-  const [traders, setTraders] = useState<Trader[]>(initialTraders)
-  const [window, setWindow] = useState<TimeWindow>('all')
+  const [traders, setTraders] = useState<TraderWithPeriod[]>(initialTraders)
+  const [window, setWindow] = useState<TimeWindow>('1d')
   const [category, setCategory] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'pnl' | 'volume' | 'win_rate'>('pnl')
   const [loading, setLoading] = useState(false)
+  const abortRef = useRef<AbortController | null>(null)
 
   const fetchTraders = useCallback(async () => {
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
     setLoading(true)
     try {
       const params = new URLSearchParams({ window, category, limit: '100' })
-      const res = await fetch(`/api/leaderboard?${params}`)
+      const res = await fetch(`/api/leaderboard?${params}`, { signal: abortRef.current.signal })
       const data = await res.json()
       setTraders(data.traders ?? [])
     } catch (e) {
-      console.error(e)
+      if ((e as Error).name !== 'AbortError') console.error(e)
     } finally {
       setLoading(false)
     }
@@ -58,10 +63,16 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
     : 'rank_1d'
 
   const sorted = [...traders].sort((a, b) => {
-    if (sortBy === 'volume') return b.total_volume - a.total_volume
+    if (sortBy === 'volume') {
+      const aVol = window !== 'all' ? (a.period_volume ?? a.total_volume) : a.total_volume
+      const bVol = window !== 'all' ? (b.period_volume ?? b.total_volume) : b.total_volume
+      return bVol - aVol
+    }
     if (sortBy === 'win_rate') return b.win_rate - a.win_rate
     return b.total_pnl - a.total_pnl
   })
+
+  const isPeriod = window !== 'all'
 
   return (
     <div>
@@ -96,6 +107,23 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
                 </button>
               ))}
             </div>
+
+            {/* Refresh button */}
+            <button
+              onClick={fetchTraders}
+              disabled={loading}
+              className="ml-auto shrink-0 flex items-center gap-1.5 text-[13px] font-medium text-[#8C8C8C] hover:text-[#0D0D0D] transition-colors disabled:opacity-40"
+              title="Refresh"
+            >
+              <svg
+                width="14" height="14" viewBox="0 0 14 14" fill="none"
+                className={loading ? 'animate-spin' : ''}
+              >
+                <path d="M13 7A6 6 0 1 1 7 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M7 1L9.5 3.5L7 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Refresh
+            </button>
           </div>
         </div>
       </div>
@@ -105,11 +133,11 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
         {loading ? (
           <LeaderboardSkeleton />
         ) : sorted.length === 0 ? (
-          <EmptyState />
+          <EmptyState onRefresh={fetchTraders} />
         ) : (
           <div className="card overflow-hidden">
             {/* Table header */}
-            <div className="grid grid-cols-[48px_1fr_140px_120px_100px_100px_80px] gap-4 px-6 py-3 border-b border-[#E8E8E8] bg-[#F7F7F7]">
+            <div className="grid grid-cols-[48px_1fr_140px_140px_100px_100px_80px] gap-4 px-6 py-3 border-b border-[#E8E8E8] bg-[#F7F7F7]">
               <span className="text-[12px] font-medium text-[#8C8C8C] uppercase tracking-wide">#</span>
               <span className="text-[12px] font-medium text-[#8C8C8C] uppercase tracking-wide">Trader</span>
               <button
@@ -119,7 +147,7 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
                   sortBy === 'pnl' ? 'text-[#0D0D0D]' : 'text-[#8C8C8C]'
                 )}
               >
-                PnL {sortBy === 'pnl' && '↓'}
+                PnL (all-time) {sortBy === 'pnl' && '↓'}
               </button>
               <button
                 onClick={() => setSortBy('volume')}
@@ -128,7 +156,7 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
                   sortBy === 'volume' ? 'text-[#0D0D0D]' : 'text-[#8C8C8C]'
                 )}
               >
-                Volume {sortBy === 'volume' && '↓'}
+                {isPeriod ? 'Volume (period)' : 'Volume'} {sortBy === 'volume' && '↓'}
               </button>
               <button
                 onClick={() => setSortBy('win_rate')}
@@ -152,12 +180,15 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
               const traderRecord = trader as unknown as Record<string, number | null>
               const rank = traderRecord[rankCol] ?? i + 1
               const isTop10 = rank <= 10
+              const displayVolume = isPeriod
+                ? (trader.period_volume ?? trader.total_volume)
+                : trader.total_volume
               return (
                 <Link
                   key={trader.id}
                   href={`/traders/${trader.wallet_address}`}
                   className={cn(
-                    'grid grid-cols-[48px_1fr_140px_120px_100px_100px_80px] gap-4 px-6 py-4 items-center table-row-hover border-b border-[#E8E8E8] last:border-0 transition-colors',
+                    'grid grid-cols-[48px_1fr_140px_140px_100px_100px_80px] gap-4 px-6 py-4 items-center table-row-hover border-b border-[#E8E8E8] last:border-0 transition-colors',
                     isTop10 && 'bg-[#FAFFF9]'
                   )}
                 >
@@ -192,7 +223,7 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
                     </div>
                   </div>
 
-                  {/* PnL */}
+                  {/* PnL (all-time) */}
                   <div>
                     <span className={cn('text-[15px] font-bold tabular-nums', pnlColor(trader.total_pnl))}>
                       {trader.total_pnl >= 0 ? '+' : ''}{formatCurrency(trader.total_pnl, true)}
@@ -201,7 +232,7 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
 
                   {/* Volume */}
                   <span className="text-[14px] text-[#0D0D0D] tabular-nums font-medium">
-                    {formatCurrency(trader.total_volume, true)}
+                    {formatCurrency(displayVolume, true)}
                   </span>
 
                   {/* Win rate */}
@@ -225,7 +256,7 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
         )}
 
         <p className="mt-4 text-[12px] text-[#8C8C8C] text-center">
-          Showing {sorted.length} traders · Data from Polymarket public API · Refreshes every 15 min
+          Showing {sorted.length} traders · Ranked by activity in selected period · PnL is all-time · Refreshes every 15 min
         </p>
       </div>
     </div>
@@ -283,14 +314,20 @@ function LeaderboardSkeleton() {
   )
 }
 
-function EmptyState() {
+function EmptyState({ onRefresh }: { onRefresh: () => void }) {
   return (
     <div className="card flex flex-col items-center justify-center py-20 text-center">
       <div className="text-4xl mb-4">📊</div>
-      <h3 className="text-[16px] font-semibold text-[#0D0D0D] mb-2">No traders yet</h3>
-      <p className="text-[14px] text-[#8C8C8C] max-w-sm">
-        The leaderboard syncs from Polymarket every 15 minutes. Check back shortly or trigger a manual sync.
+      <h3 className="text-[16px] font-semibold text-[#0D0D0D] mb-2">No traders found</h3>
+      <p className="text-[14px] text-[#8C8C8C] max-w-sm mb-6">
+        No traders ranked for this period yet. Try a different time window or category.
       </p>
+      <button
+        onClick={onRefresh}
+        className="pill active"
+      >
+        Try again
+      </button>
     </div>
   )
 }
