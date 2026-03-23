@@ -1,13 +1,21 @@
 'use client'
 
 import { useState } from 'react'
-import { Market } from '@/lib/types'
 import { cn } from '@/lib/utils'
+
+interface PolymarketRow {
+  id: string
+  title: string
+  slug: string
+  category: string
+  yesPrice: number | null
+  volume: number
+}
 
 const CATEGORIES = ['All', 'Politics', 'Crypto', 'Sports', 'Economics', 'Other']
 
 interface Props {
-  markets: Market[]
+  markets: PolymarketRow[]
 }
 
 export function MarketsClient({ markets }: Props) {
@@ -18,22 +26,19 @@ export function MarketsClient({ markets }: Props) {
     ? markets
     : markets.filter(m => m.category === category)
 
-  const sorted = [...filtered].sort((a, b) => {
-    if (sortBy === 'price') {
-      const aYes = a.current_prices?.yes ?? a.current_prices?.YES ?? 0
-      const bYes = b.current_prices?.yes ?? b.current_prices?.YES ?? 0
-      return bYes - aYes
-    }
-    return (b.volume ?? 0) - (a.volume ?? 0)
-  })
+  const sorted = [...filtered].sort((a, b) =>
+    sortBy === 'price'
+      ? (b.yesPrice ?? 0) - (a.yesPrice ?? 0)
+      : b.volume - a.volume
+  )
 
   if (markets.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
         <div className="text-4xl mb-4">📈</div>
-        <h3 className="text-[16px] font-semibold text-[#0D0D0D] mb-2">No markets yet</h3>
+        <h3 className="text-[16px] font-semibold text-[#0D0D0D] mb-2">Loading markets…</h3>
         <p className="text-[14px] text-[#8C8C8C] max-w-sm mx-auto">
-          Market data syncs from Polymarket every 15 minutes. Check back shortly.
+          Fetching live market data from Polymarket.
         </p>
       </div>
     )
@@ -52,7 +57,8 @@ export function MarketsClient({ markets }: Props) {
                 onClick={() => setCategory(c)}
                 className={cn('pill', category === c && 'active')}
               >
-                {c} {c !== 'All' && count > 0 && (
+                {c}
+                {c !== 'All' && count > 0 && (
                   <span className="ml-1 opacity-60">({count})</span>
                 )}
               </button>
@@ -60,18 +66,12 @@ export function MarketsClient({ markets }: Props) {
           })}
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2 shrink-0">
           <span className="text-[12px] text-[#8C8C8C]">Sort:</span>
-          <button
-            onClick={() => setSortBy('volume')}
-            className={cn('pill text-[12px]', sortBy === 'volume' && 'active')}
-          >
+          <button onClick={() => setSortBy('volume')} className={cn('pill text-[12px]', sortBy === 'volume' && 'active')}>
             Volume
           </button>
-          <button
-            onClick={() => setSortBy('price')}
-            className={cn('pill text-[12px]', sortBy === 'price' && 'active')}
-          >
+          <button onClick={() => setSortBy('price')} className={cn('pill text-[12px]', sortBy === 'price' && 'active')}>
             YES Price
           </button>
         </div>
@@ -79,8 +79,7 @@ export function MarketsClient({ markets }: Props) {
 
       {/* Table */}
       <div className="card overflow-hidden">
-        {/* Header */}
-        <div className="grid grid-cols-[1fr_90px_70px_90px] gap-4 px-5 py-3 bg-[#F7F7F7] border-b border-[#E8E8E8]">
+        <div className="grid grid-cols-[1fr_100px_70px_100px] gap-4 px-5 py-3 bg-[#F7F7F7] border-b border-[#E8E8E8]">
           <span className="text-[12px] font-medium text-[#8C8C8C] uppercase tracking-wide">Market</span>
           <span className="text-[12px] font-medium text-[#8C8C8C] uppercase tracking-wide">Category</span>
           <span className="text-[12px] font-medium text-[#8C8C8C] uppercase tracking-wide text-right">YES</span>
@@ -97,56 +96,52 @@ export function MarketsClient({ markets }: Props) {
       </div>
 
       <p className="mt-4 text-[12px] text-[#8C8C8C] text-center">
-        Showing {sorted.length} of {markets.length} markets · Polymarket · Refreshes every 15 min
+        Showing {sorted.length} of {markets.length} markets · Polymarket · Cached 5 min
       </p>
     </div>
   )
 }
 
-function MarketRow({ market }: { market: Market }) {
-  const yesPrice = market.current_prices?.yes ?? market.current_prices?.YES ?? null
-  const vol = market.volume ?? 0
+function MarketRow({ market }: { market: PolymarketRow }) {
+  const { yesPrice, volume } = market
+
+  const priceColor = yesPrice == null ? ''
+    : yesPrice >= 0.7 ? 'text-[#00C805]'
+    : yesPrice <= 0.3 ? 'text-[#FF5000]'
+    : 'text-[#0D0D0D]'
+
+  const volStr = volume >= 1_000_000
+    ? `$${(volume / 1_000_000).toFixed(1)}M`
+    : volume >= 1_000
+    ? `$${(volume / 1_000).toFixed(0)}K`
+    : volume > 0
+    ? `$${volume.toFixed(0)}`
+    : '—'
 
   return (
     <a
-      href={`https://polymarket.com/event/${market.slug_or_ticker}`}
+      href={`https://polymarket.com/event/${market.slug}`}
       target="_blank"
       rel="noopener noreferrer"
-      className="grid grid-cols-[1fr_90px_70px_90px] gap-4 px-5 py-4 items-center table-row-hover border-b border-[#E8E8E8] last:border-0 transition-colors group"
+      className="grid grid-cols-[1fr_100px_70px_100px] gap-4 px-5 py-4 items-center table-row-hover border-b border-[#E8E8E8] last:border-0 transition-colors group"
     >
-      <span className="text-[14px] font-medium text-[#0D0D0D] truncate group-hover:text-[#0D0D0D] group-hover:underline decoration-[#E8E8E8]">
+      <span className="text-[14px] font-medium text-[#0D0D0D] truncate group-hover:underline decoration-[#E8E8E8]">
         {market.title}
       </span>
-
       <span className="text-[11px] text-[#8C8C8C] font-medium truncate">
-        {market.category ?? '—'}
+        {market.category}
       </span>
-
       <div className="text-right">
         {yesPrice != null ? (
-          <span className={cn(
-            'text-[14px] font-bold tabular-nums',
-            yesPrice >= 0.6 ? 'text-[#00C805]'
-              : yesPrice <= 0.4 ? 'text-[#FF5000]'
-              : 'text-[#0D0D0D]'
-          )}>
+          <span className={cn('text-[14px] font-bold tabular-nums', priceColor)}>
             {(yesPrice * 100).toFixed(0)}¢
           </span>
         ) : (
           <span className="text-[14px] text-[#8C8C8C]">—</span>
         )}
       </div>
-
       <div className="text-right">
-        <span className="text-[14px] font-medium text-[#0D0D0D] tabular-nums">
-          {vol >= 1_000_000
-            ? `$${(vol / 1_000_000).toFixed(1)}M`
-            : vol >= 1_000
-            ? `$${(vol / 1_000).toFixed(0)}K`
-            : vol > 0
-            ? `$${vol.toFixed(0)}`
-            : '—'}
-        </span>
+        <span className="text-[14px] font-medium text-[#0D0D0D] tabular-nums">{volStr}</span>
       </div>
     </a>
   )

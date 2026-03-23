@@ -45,7 +45,10 @@ export default async function FeedPage() {
               Trade Feed
             </h1>
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F0FFF0] border border-[#00C805]/20">
-              <span className="live-dot w-1.5 h-1.5 rounded-full bg-[#00C805] shrink-0" />
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="live-ping absolute inline-flex h-full w-full rounded-full bg-[#00C805]" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#00C805]" />
+              </span>
               <span className="text-[11px] font-semibold text-[#00C805]">LIVE</span>
             </div>
           </div>

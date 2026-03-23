@@ -1,29 +1,57 @@
 import { MarketsClient } from '@/components/markets/MarketsClient'
-import { createClient } from '@/lib/supabase/server'
-import { Market } from '@/lib/types'
+import { getMarkets, detectCategory } from '@/lib/polymarket/client'
 
-export const revalidate = 900
+export const revalidate = 300
 
-async function getMarkets(): Promise<Market[]> {
+interface PolymarketRow {
+  id: string
+  title: string
+  slug: string
+  category: string
+  yesPrice: number | null
+  volume: number
+}
+
+async function getPolymarkets(): Promise<PolymarketRow[]> {
   try {
-    const supabase = await createClient()
-    const { data } = await supabase
-      .from('markets')
-      .select('*')
-      .eq('platform', 'polymarket')
-      .eq('status', 'active')
-      .order('volume', { ascending: false })
-      .limit(300)
-    return (data ?? []) as Market[]
-  } catch {
+    const raw = await getMarkets(200)
+    return (raw as Record<string, unknown>[])
+      .filter(m => m.active && !m.archived && !m.closed)
+      .map(m => {
+        const tagLabels = ((m.tags ?? []) as unknown[]).map(t =>
+          typeof t === 'string' ? t : ((t as Record<string, string>)?.label ?? (t as Record<string, string>)?.slug ?? '')
+        ).filter(Boolean)
+
+        let pricesArr: string[] = []
+        if (typeof m.outcomePrices === 'string') {
+          try { pricesArr = JSON.parse(m.outcomePrices) } catch { pricesArr = [] }
+        } else if (Array.isArray(m.outcomePrices)) {
+          pricesArr = m.outcomePrices as string[]
+        }
+
+        const yesPrice = pricesArr[0] ? parseFloat(pricesArr[0]) : null
+        const vol = m.volumeNum ? Number(m.volumeNum) : (m.volume ? parseFloat(String(m.volume)) : 0)
+
+        return {
+          id: String(m.id ?? m.conditionId ?? ''),
+          title: String(m.question ?? m.title ?? ''),
+          slug: String(m.slug ?? ''),
+          category: detectCategory(tagLabels, String(m.question ?? ''), String(m.slug ?? '')),
+          yesPrice: yesPrice != null && !isNaN(yesPrice) ? yesPrice : null,
+          volume: isNaN(vol) ? 0 : vol,
+        }
+      })
+      .filter(m => m.title && m.id)
+      .sort((a, b) => b.volume - a.volume)
+  } catch (e) {
+    console.error('Failed to fetch Polymarket markets:', e)
     return []
   }
 }
 
 export default async function MarketsPage() {
-  const markets = await getMarkets()
-
-  const totalVolume = markets.reduce((s, m) => s + (m.volume ?? 0), 0)
+  const markets = await getPolymarkets()
+  const totalVol = markets.reduce((s, m) => s + m.volume, 0)
 
   return (
     <div>
@@ -40,7 +68,7 @@ export default async function MarketsPage() {
               <StatChip label="Active markets" value={String(markets.length)} />
               <StatChip
                 label="Total volume"
-                value={`$${(totalVolume / 1_000_000).toFixed(1)}M`}
+                value={`$${(totalVol / 1_000_000).toFixed(1)}M`}
               />
               <StatChip label="Data source" value="Polymarket" />
             </div>
@@ -53,12 +81,10 @@ export default async function MarketsPage() {
   )
 }
 
-function StatChip({ label, value, positive }: { label: string; value: string; positive?: boolean }) {
+function StatChip({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className={`text-[20px] font-bold ${positive ? 'text-[#00C805]' : 'text-[#0D0D0D]'}`}>
-        {value}
-      </div>
+      <div className="text-[20px] font-bold text-[#0D0D0D]">{value}</div>
       <div className="text-[12px] text-[#8C8C8C] font-medium mt-0.5">{label}</div>
     </div>
   )

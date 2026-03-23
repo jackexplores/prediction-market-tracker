@@ -17,57 +17,87 @@ export async function GET(req: NextRequest) {
 
   const supabase = await createClient()
 
-  const rankCol = timeWindow === 'all' ? 'rank_all'
-    : timeWindow === '30d' ? 'rank_30d'
-    : timeWindow === '7d' ? 'rank_7d'
-    : 'rank_1d'
+  // ── All-time: sort by total_pnl to bypass corrupt rank_all ──────────────────
+  if (timeWindow === 'all') {
+    let query = supabase
+      .from('traders')
+      .select('*')
+      .not('rank_all', 'is', null)
+      .order('total_pnl', { ascending: false })
+      .limit(limit)
 
-  const { data: traders, error } = await supabase
-    .from('traders')
-    .select('*')
-    .not(rankCol, 'is', null)
-    .order(rankCol, { ascending: true })
-    .limit(limit)
+    const { data: traders, error } = await query
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
+    let result = traders ?? []
 
-  let result = traders ?? []
-
-  if (category !== 'all' && result.length > 0) {
-    const { data: catTraders } = await supabase
-      .from('trades')
-      .select('trader_id')
-      .eq('category', category)
-      .in('trader_id', result.map(t => t.id))
-
-    const catTraderIds = new Set((catTraders ?? []).map((t: { trader_id: string }) => t.trader_id))
-    result = result.filter(t => catTraderIds.has(t.id))
-  }
-
-  // Compute period-specific volume from trades for non-all windows
-  if (timeWindow !== 'all' && result.length > 0) {
-    const cutoff = new Date(Date.now() - WINDOW_MS[timeWindow]).toISOString()
-    const traderIds = result.map(t => t.id)
-
-    const { data: periodTrades } = await supabase
-      .from('trades')
-      .select('trader_id, usdc_size')
-      .in('trader_id', traderIds)
-      .gte('timestamp', cutoff)
-      .limit(50000)
-
-    const volMap = new Map<string, number>()
-    for (const t of periodTrades ?? []) {
-      volMap.set(t.trader_id, (volMap.get(t.trader_id) ?? 0) + Number(t.usdc_size ?? 0))
+    if (category !== 'all' && result.length > 0) {
+      const { data: catTraders } = await supabase
+        .from('trades')
+        .select('trader_id')
+        .eq('category', category)
+        .in('trader_id', result.map(t => t.id))
+      const catIds = new Set((catTraders ?? []).map((t: { trader_id: string }) => t.trader_id))
+      result = result.filter(t => catIds.has(t.id))
     }
 
-    result = result.map(t => ({
-      ...t,
-      period_volume: volMap.get(t.id) ?? 0,
-    }))
+    // Assign clean sequential ranks
+    result = result.map((t, i) => ({ ...t, period_rank: i + 1 }))
+    return NextResponse.json({ traders: result, window: timeWindow })
   }
+
+  // ── Period windows: rank by actual trade volume in the window ────────────────
+  const cutoff = new Date(Date.now() - WINDOW_MS[timeWindow]).toISOString()
+
+  let tradeQuery = supabase
+    .from('trades')
+    .select('trader_id, usdc_size')
+    .gte('timestamp', cutoff)
+    .limit(100000)
+
+  if (category !== 'all') {
+    tradeQuery = tradeQuery.eq('category', category)
+  }
+
+  const { data: periodTrades } = await tradeQuery
+
+  if (!periodTrades || periodTrades.length === 0) {
+    return NextResponse.json({ traders: [], window: timeWindow })
+  }
+
+  // Aggregate volume per trader
+  const volMap = new Map<string, number>()
+  for (const t of periodTrades) {
+    volMap.set(t.trader_id, (volMap.get(t.trader_id) ?? 0) + Number(t.usdc_size ?? 0))
+  }
+
+  const sortedIds = [...volMap.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([id]) => id)
+
+  if (sortedIds.length === 0) {
+    return NextResponse.json({ traders: [], window: timeWindow })
+  }
+
+  const { data: traderDetails } = await supabase
+    .from('traders')
+    .select('*')
+    .in('id', sortedIds)
+
+  const traderMap = new Map((traderDetails ?? []).map(t => [t.id, t]))
+
+  const result = sortedIds
+    .map((id, index) => {
+      const trader = traderMap.get(id)
+      if (!trader) return null
+      return {
+        ...trader,
+        period_volume: volMap.get(id) ?? 0,
+        period_rank: index + 1,
+      }
+    })
+    .filter(Boolean)
 
   return NextResponse.json({ traders: result, window: timeWindow })
 }

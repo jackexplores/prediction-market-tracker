@@ -8,10 +8,10 @@ import { Sparkline } from '@/components/leaderboard/Sparkline'
 import { cn } from '@/lib/utils'
 
 const WINDOWS: { value: TimeWindow; label: string }[] = [
-  { value: '1d', label: '24 Hours' },
-  { value: '7d', label: '7 Days' },
-  { value: '30d', label: '30 Days' },
   { value: 'all', label: 'All Time' },
+  { value: '30d', label: '30 Days' },
+  { value: '7d', label: '7 Days' },
+  { value: '1d', label: '24 Hours' },
 ]
 
 const CATEGORIES: { value: Category | 'all'; label: string }[] = [
@@ -35,6 +35,7 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
   const [category, setCategory] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'pnl' | 'volume' | 'win_rate'>('pnl')
   const [loading, setLoading] = useState(false)
+  const [rotateDeg, setRotateDeg] = useState(0)
   const abortRef = useRef<AbortController | null>(null)
 
   const fetchTraders = useCallback(async () => {
@@ -56,11 +57,6 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
   useEffect(() => {
     fetchTraders()
   }, [fetchTraders])
-
-  const rankCol = window === 'all' ? 'rank_all'
-    : window === '30d' ? 'rank_30d'
-    : window === '7d' ? 'rank_7d'
-    : 'rank_1d'
 
   const sorted = [...traders].sort((a, b) => {
     if (sortBy === 'volume') {
@@ -110,17 +106,19 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
 
             {/* Refresh button */}
             <button
-              onClick={fetchTraders}
+              onClick={() => { setRotateDeg(d => d + 180); fetchTraders() }}
               disabled={loading}
               className="ml-auto shrink-0 flex items-center gap-1.5 text-[13px] font-medium text-[#8C8C8C] hover:text-[#0D0D0D] transition-colors disabled:opacity-40"
               title="Refresh"
             >
               <svg
-                width="14" height="14" viewBox="0 0 14 14" fill="none"
-                className={loading ? 'animate-spin' : ''}
+                width="15" height="15" viewBox="0 0 24 24" fill="none"
+                style={{ transform: `rotate(${rotateDeg}deg)`, transition: 'transform 0.5s cubic-bezier(0.4,0,0.2,1)' }}
               >
-                <path d="M13 7A6 6 0 1 1 7 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M7 1L9.5 3.5L7 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M21 12a9 9 0 0 0-15.39-6.36L3 3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M3 3v5h5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M3 12a9 9 0 0 0 15.39 6.36L21 21" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M21 21v-5h-5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               Refresh
             </button>
@@ -147,7 +145,7 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
                   sortBy === 'pnl' ? 'text-[#0D0D0D]' : 'text-[#8C8C8C]'
                 )}
               >
-                PnL (all-time) {sortBy === 'pnl' && '↓'}
+                PnL {sortBy === 'pnl' && '↓'}
               </button>
               <button
                 onClick={() => setSortBy('volume')}
@@ -177,8 +175,7 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
 
             {/* Rows */}
             {sorted.map((trader, i) => {
-              const traderRecord = trader as unknown as Record<string, number | null>
-              const rank = traderRecord[rankCol] ?? i + 1
+              const rank = (trader as TraderWithPeriod & { period_rank?: number }).period_rank ?? i + 1
               const isTop10 = rank <= 10
               const displayVolume = isPeriod
                 ? (trader.period_volume ?? trader.total_volume)
