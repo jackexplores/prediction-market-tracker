@@ -95,7 +95,7 @@ export function TradeFeedClient({ initialTrades, trackedTraders }: TradeFeedClie
   const [minSize, setMinSize] = useState(0)
   const [selectedTrader, setSelectedTrader] = useState<string>('all')
   const [loading, setLoading] = useState(false)
-  const [rotateDeg, setRotateDeg] = useState(0)
+  const [rotated, setRotated] = useState(false)
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const [newCount, setNewCount] = useState(0)
 
@@ -184,14 +184,15 @@ export function TradeFeedClient({ initialTrades, trackedTraders }: TradeFeedClie
           )}
           {/* Manual refresh */}
           <button
-            onClick={() => { setRotateDeg(d => d + 180); fetchTrades(true) }}
+            onClick={() => { setRotated(r => !r); fetchTrades(true) }}
             disabled={loading}
             className="flex items-center gap-1.5 text-[13px] font-medium text-[#8C8C8C] hover:text-[#0D0D0D] transition-colors disabled:opacity-40"
             title="Refresh"
           >
             <svg
               width="15" height="15" viewBox="0 0 24 24" fill="none"
-              style={{ transform: `rotate(${rotateDeg}deg)`, transition: 'transform 0.5s cubic-bezier(0.4,0,0.2,1)' }}
+              className="refresh-icon"
+              style={{ transform: `rotate(${rotated ? 180 : 0}deg)` }}
             >
               <path d="M21 12a9 9 0 0 0-15.39-6.36L3 3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M3 3v5h5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
