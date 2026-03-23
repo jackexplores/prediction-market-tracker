@@ -4,7 +4,14 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import * as Select from '@radix-ui/react-select'
 import { Trade } from '@/lib/types'
+import dynamic from 'next/dynamic'
 import { formatCurrency, truncateWallet, timeAgo, cn } from '@/lib/utils'
+import { AiObservationsSkeleton } from '@/components/shared/AiObservations'
+
+const AiObservations = dynamic(
+  () => import('@/components/shared/AiObservations').then(m => ({ default: m.AiObservations })),
+  { ssr: false, loading: () => <AiObservationsSkeleton /> }
+)
 
 const CATEGORIES = ['all', 'Politics', 'Crypto', 'Sports', 'Economics', 'Other']
 const MIN_SIZES = [
@@ -139,6 +146,13 @@ export function TradeFeedClient({ initialTrades, trackedTraders }: TradeFeedClie
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* AI Observations */}
+      <AiObservations
+        page="trades"
+        filters={{ category, minSize: String(minSize), trader: selectedTrader }}
+        dataSummary={buildTradeFeedSummary(trades, category, minSize)}
+      />
+
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
         {/* Category pills */}
@@ -321,6 +335,66 @@ function TraderMiniAvatar({ trader }: { trader?: { username?: string | null; wal
       <span className="text-white text-[10px] font-bold">{initials}</span>
     </div>
   )
+}
+
+function buildTradeFeedSummary(trades: Trade[], cat: string, minSize: number): string {
+  if (trades.length === 0) return ''
+
+  const buys = trades.filter(t => t.side === 'BUY').length
+  const sells = trades.length - buys
+  const totalVol = trades.reduce((s, t) => s + (t.usdc_size ?? 0), 0)
+  const avgSize = trades.length > 0 ? totalVol / trades.length : 0
+
+  // Category breakdown
+  const catCounts: Record<string, number> = {}
+  for (const t of trades) {
+    const c = t.category ?? 'Unknown'
+    catCounts[c] = (catCounts[c] ?? 0) + 1
+  }
+  const catBreakdown = Object.entries(catCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([c, n]) => `${c} (${n})`)
+    .join(', ')
+
+  // Top markets by trade count
+  const marketCounts: Record<string, number> = {}
+  for (const t of trades) {
+    const key = t.market_title ?? t.market_slug
+    marketCounts[key] = (marketCounts[key] ?? 0) + 1
+  }
+  const topMarkets = Object.entries(marketCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([m, n]) => `"${m.slice(0, 60)}" (${n} trades)`)
+    .join('\n')
+
+  // Largest trades
+  const largest = [...trades]
+    .filter(t => t.usdc_size != null)
+    .sort((a, b) => (b.usdc_size ?? 0) - (a.usdc_size ?? 0))
+    .slice(0, 3)
+  const largestLines = largest.map(t => {
+    const tdr = (t.traders as { username?: string | null; wallet_address?: string } | undefined)
+    const name = tdr?.username ?? tdr?.wallet_address?.slice(0, 8) ?? 'unknown'
+    const size = `$${((t.usdc_size ?? 0) >= 1000 ? ((t.usdc_size ?? 0) / 1000).toFixed(1) + 'K' : (t.usdc_size ?? 0).toFixed(0))}`
+    const market = (t.market_title ?? t.market_slug ?? '').slice(0, 50)
+    return `${name} ${t.side} "${market}" for ${size}`
+  }).join('\n')
+
+  const fmt = (n: number) => n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `$${(n / 1_000).toFixed(1)}K` : `$${n.toFixed(0)}`
+
+  const minLabel = minSize === 0 ? 'any size' : `${fmt(minSize)}+`
+  return `Trade feed: ${cat === 'all' ? 'all categories' : cat}, ${minLabel} (${trades.length} trades shown)
+BUY/SELL: ${buys} buys / ${sells} sells | Total vol: ${fmt(totalVol)} | Avg size: ${fmt(avgSize)}
+Over $10K: ${trades.filter(t => (t.usdc_size ?? 0) >= 10000).length} trades
+
+Categories: ${catBreakdown}
+
+Top markets:
+${topMarkets}
+
+Largest trades:
+${largestLines}`
 }
 
 function FeedSkeleton() {

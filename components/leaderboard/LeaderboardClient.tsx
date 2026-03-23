@@ -4,8 +4,15 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { Trader, TimeWindow, Category } from '@/lib/types'
 import { formatCurrency, formatPercent, truncateWallet, pnlColor, timeAgo } from '@/lib/utils'
+import dynamic from 'next/dynamic'
 import { Sparkline } from '@/components/leaderboard/Sparkline'
+import { AiObservationsSkeleton } from '@/components/shared/AiObservations'
 import { cn } from '@/lib/utils'
+
+const AiObservations = dynamic(
+  () => import('@/components/shared/AiObservations').then(m => ({ default: m.AiObservations })),
+  { ssr: false, loading: () => <AiObservationsSkeleton /> }
+)
 
 const WINDOWS: { value: TimeWindow; label: string }[] = [
   { value: 'all', label: 'All Time' },
@@ -73,8 +80,15 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
 
   const isPeriod = window !== 'all'
 
+  const leaderboardSummary = buildLeaderboardSummary(sorted, window, category)
+
   return (
     <div>
+      {/* AI Observations */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <AiObservations page="leaderboard" filters={{ window, category }} dataSummary={leaderboardSummary} />
+      </div>
+
       {/* Filter bar */}
       <div className="sticky top-14 z-40 bg-white border-b border-[#E8E8E8] py-3">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -131,7 +145,7 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
       </div>
 
       {/* Table */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
         {loading ? (
           <LeaderboardSkeleton />
         ) : sorted.length === 0 ? (
@@ -296,6 +310,40 @@ function TraderAvatar({ trader, size = 36 }: { trader: Trader; size?: number }) 
       {initials}
     </div>
   )
+}
+
+function buildLeaderboardSummary(traders: TraderWithPeriod[], timeWindow: TimeWindow, cat: string): string {
+  if (traders.length === 0) return ''
+
+  const isPeriod = timeWindow !== 'all'
+  const windowLabel = { '1d': '24 Hours', '7d': '7 Days', '30d': '30 Days', 'all': 'All Time' }[timeWindow] ?? timeWindow
+  const getPnl = (t: TraderWithPeriod) => isPeriod ? (t.period_pnl ?? t.total_pnl) : t.total_pnl
+  const getVol = (t: TraderWithPeriod) => isPeriod ? (t.period_volume ?? t.total_volume) : t.total_volume
+
+  const profitable = traders.filter(t => getPnl(t) > 0).length
+  const totalPnl = traders.reduce((s, t) => s + getPnl(t), 0)
+  const totalVol = traders.reduce((s, t) => s + getVol(t), 0)
+  const avgPnl = traders.length > 0 ? totalPnl / traders.length : 0
+
+  const fmt = (n: number) => {
+    const abs = Math.abs(n)
+    const prefix = n >= 0 ? '+$' : '-$'
+    if (abs >= 1_000_000) return `${prefix}${(abs / 1_000_000).toFixed(1)}M`
+    if (abs >= 1_000) return `${prefix}${(abs / 1_000).toFixed(1)}K`
+    return `${prefix}${abs.toFixed(0)}`
+  }
+
+  const top10 = traders.slice(0, 10)
+  const topLines = top10.map((t, i) => {
+    const name = t.username ?? t.wallet_address.slice(0, 8)
+    return `${i + 1}. ${name}: ${fmt(getPnl(t))} PnL, ${fmt(getVol(t))} vol, ${t.markets_traded ?? 0} markets`
+  }).join('\n')
+
+  return `Leaderboard: ${windowLabel} window, ${cat === 'all' ? 'all categories' : cat} (${traders.length} traders shown)
+Profitable: ${profitable}/${traders.length} | Total PnL: ${fmt(totalPnl)} | Total Vol: ${fmt(totalVol)} | Avg PnL: ${fmt(avgPnl)}
+
+Top 10 by PnL:
+${topLines}`
 }
 
 function LeaderboardSkeleton() {

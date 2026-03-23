@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils'
 const links = [
   { href: '/', label: 'Leaderboard' },
   { href: '/feed', label: 'Trade Feed' },
-  { href: '/markets', label: 'Markets' },
 ]
 
 function ChartPolarIcon({ className }: { className?: string }) {

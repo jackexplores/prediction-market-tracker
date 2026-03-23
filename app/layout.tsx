@@ -3,11 +3,11 @@ import './globals.css'
 import { Nav } from '@/components/layout/Nav'
 
 export const metadata: Metadata = {
-  title: 'Polytracker — Smart Money on Prediction Markets',
+  title: 'Prediction Market Tracker',
   description:
     'Track the best-performing Polymarket traders. Real-time trade feed, ranked leaderboard, and cross-platform Kalshi comparison.',
   openGraph: {
-    title: 'Polytracker',
+    title: 'Prediction Market Tracker',
     description: 'Track smart money on prediction markets',
     type: 'website',
   },
