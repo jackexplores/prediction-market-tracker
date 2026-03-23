@@ -21,8 +21,16 @@ async function fetchWithBackoff(url: string, retries = 3): Promise<Response> {
   throw new Error(`Failed after ${retries} retries`)
 }
 
-export async function getLeaderboard(timeWindow: TimeWindow = 'all', limit = 100): Promise<LeaderboardEntry[]> {
-  const url = `${DATA_API}/v1/leaderboard?window=${timeWindow}&limit=${limit}`
+const TIME_PERIOD_MAP: Record<TimeWindow, string> = {
+  '1d': 'DAY',
+  '7d': 'WEEK',
+  '30d': 'MONTH',
+  'all': 'ALL',
+}
+
+export async function getLeaderboard(timeWindow: TimeWindow = 'all', limit = 50): Promise<LeaderboardEntry[]> {
+  const timePeriod = TIME_PERIOD_MAP[timeWindow]
+  const url = `${DATA_API}/v1/leaderboard?timePeriod=${timePeriod}&orderBy=PNL&limit=${limit}`
   const res = await fetchWithBackoff(url)
   if (!res.ok) throw new Error(`Leaderboard fetch failed: ${res.status}`)
   const data = await res.json()

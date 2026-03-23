@@ -121,7 +121,7 @@ export function TraderProfileClient({ data }: Props) {
             valueClass={pnlColor(trader.total_pnl)}
           />
           <StatCard label="Volume" value={formatCurrency(trader.total_volume, true)} />
-          <StatCard label="Win Rate" value={formatPercent(trader.win_rate)} />
+          <StatCard label="Markets" value={(trader.markets_traded ?? 0).toLocaleString()} />
           <StatCard label="Trades" value={trades.length.toLocaleString()} />
           <StatCard label="Avg Size" value={formatCurrency(avgSize, true)} />
         </div>

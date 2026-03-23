@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
   for (const win of windows) {
     try {
-      const entries = await getLeaderboard(win, 100)
+      const entries = await getLeaderboard(win, 50)
       for (const entry of entries) {
         const wallet = entry.proxyWallet?.toLowerCase()
         if (!wallet) continue
@@ -39,8 +39,13 @@ export async function GET(req: NextRequest) {
           x_username: entry.xUsername || existing.x_username || null,
           verified: entry.verifiedBadge || existing.verified || false,
           [`rank_${win}`]: entry.rank,
-          total_pnl: win === 'all' ? entry.pnl : (existing.total_pnl ?? entry.pnl),
-          total_volume: win === 'all' ? entry.vol : (existing.total_volume ?? entry.vol),
+          ...(win === 'all' ? {
+            total_pnl: entry.pnl,
+            total_volume: entry.vol,
+          } : {
+            [`pnl_${win}`]: entry.pnl,
+            [`volume_${win}`]: entry.vol,
+          }),
           last_synced_at: new Date().toISOString(),
         })
       }

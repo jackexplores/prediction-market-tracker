@@ -7,7 +7,13 @@ export interface Trader {
   verified: boolean
   total_pnl: number
   total_volume: number
-  win_rate: number
+  markets_traded: number
+  pnl_1d: number
+  pnl_7d: number
+  pnl_30d: number
+  volume_1d: number
+  volume_7d: number
+  volume_30d: number
   rank_all: number | null
   rank_30d: number | null
   rank_7d: number | null

@@ -23,7 +23,7 @@ const CATEGORIES: { value: Category | 'all'; label: string }[] = [
   { value: 'Other', label: 'Other' },
 ]
 
-type TraderWithPeriod = Trader & { period_volume?: number }
+type TraderWithPeriod = Trader & { period_volume?: number; period_pnl?: number; period_rank?: number }
 
 interface LeaderboardClientProps {
   initialTraders: Trader[]
@@ -33,7 +33,7 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
   const [traders, setTraders] = useState<TraderWithPeriod[]>(initialTraders)
   const [window, setWindow] = useState<TimeWindow>('1d')
   const [category, setCategory] = useState<string>('all')
-  const [sortBy, setSortBy] = useState<'pnl' | 'volume' | 'win_rate'>('pnl')
+  const [sortBy, setSortBy] = useState<'pnl' | 'volume' | 'markets_traded'>('pnl')
   const [loading, setLoading] = useState(false)
   const [rotated, setRotated] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
@@ -64,8 +64,11 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
       const bVol = window !== 'all' ? (b.period_volume ?? b.total_volume) : b.total_volume
       return bVol - aVol
     }
-    if (sortBy === 'win_rate') return b.win_rate - a.win_rate
-    return b.total_pnl - a.total_pnl
+    if (sortBy === 'markets_traded') return (b.markets_traded ?? 0) - (a.markets_traded ?? 0)
+    // For PnL: use period_pnl when in a period window, total_pnl for all-time
+    const aPnl = window !== 'all' ? (a.period_pnl ?? a.total_pnl) : a.total_pnl
+    const bPnl = window !== 'all' ? (b.period_pnl ?? b.total_pnl) : b.total_pnl
+    return bPnl - aPnl
   })
 
   const isPeriod = window !== 'all'
@@ -158,13 +161,13 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
                 {isPeriod ? 'Volume (period)' : 'Volume'} {sortBy === 'volume' && '↓'}
               </button>
               <button
-                onClick={() => setSortBy('win_rate')}
+                onClick={() => setSortBy('markets_traded')}
                 className={cn(
                   'text-[12px] font-medium uppercase tracking-wide text-left transition-colors',
-                  sortBy === 'win_rate' ? 'text-[#0D0D0D]' : 'text-[#8C8C8C]'
+                  sortBy === 'markets_traded' ? 'text-[#0D0D0D]' : 'text-[#8C8C8C]'
                 )}
               >
-                Win Rate {sortBy === 'win_rate' && '↓'}
+                Markets {sortBy === 'markets_traded' && '↓'}
               </button>
               <span className="text-[12px] font-medium text-[#8C8C8C] uppercase tracking-wide hidden md:block">
                 Trend
@@ -221,11 +224,16 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
                     </div>
                   </div>
 
-                  {/* PnL (all-time) */}
+                  {/* PnL (period or all-time) */}
                   <div>
-                    <span className={cn('text-[15px] font-bold tabular-nums', pnlColor(trader.total_pnl))}>
-                      {trader.total_pnl >= 0 ? '+' : ''}{formatCurrency(trader.total_pnl, true)}
-                    </span>
+                    {(() => {
+                      const displayPnl = isPeriod ? (trader.period_pnl ?? trader.total_pnl) : trader.total_pnl
+                      return (
+                        <span className={cn('text-[15px] font-bold tabular-nums', pnlColor(displayPnl))}>
+                          {displayPnl >= 0 ? '+' : ''}{formatCurrency(displayPnl, true)}
+                        </span>
+                      )
+                    })()}
                   </div>
 
                   {/* Volume */}
@@ -233,9 +241,9 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
                     {formatCurrency(displayVolume, true)}
                   </span>
 
-                  {/* Win rate */}
+                  {/* Markets traded */}
                   <span className="text-[14px] text-[#0D0D0D] tabular-nums font-medium">
-                    {formatPercent(trader.win_rate)}
+                    {(trader.markets_traded ?? 0).toLocaleString()}
                   </span>
 
                   {/* Sparkline */}
@@ -254,7 +262,7 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
         )}
 
         <p className="mt-4 text-[12px] text-[#8C8C8C] text-center">
-          Showing {sorted.length} traders · Ranked by activity in selected period · PnL is all-time · Refreshes every 15 min
+          Showing {sorted.length} traders · Ranked by PnL in selected period · Refreshes every 15 min
         </p>
       </div>
     </div>
