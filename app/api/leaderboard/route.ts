@@ -11,23 +11,31 @@ export async function GET(req: NextRequest) {
 
   const supabase = await createClient()
 
-  // ── Determine sort column and period fields ──────────────────────────────────
-  const pnlCol = timeWindow === 'all' ? 'total_pnl' : `pnl_${timeWindow}`
-  const volCol = timeWindow === 'all' ? 'total_volume' : `volume_${timeWindow}`
+  // ── Determine sort column ───────────────────────────────────────────────────
+  const isPeriod = timeWindow !== 'all'
+  const pnlCol = isPeriod ? `pnl_${timeWindow}` : 'total_pnl'
+  const volCol = isPeriod ? `volume_${timeWindow}` : 'total_volume'
 
   let query = supabase
     .from('traders')
     .select('*')
-    .not('rank_all', 'is', null)
-    .order(pnlCol, { ascending: false })
+    .order(pnlCol, { ascending: false, nullsFirst: false })
     .limit(limit)
+
+  // All-time: only show ranked traders
+  if (!isPeriod) {
+    query = query.not('rank_all', 'is', null)
+  } else {
+    // Period: only traders with data for this window
+    query = query.gt(pnlCol, 0)
+  }
 
   const { data: traders, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   let result = traders ?? []
 
-  // ── Category filter: only include traders who have traded in this category ──
+  // ── Category filter ─────────────────────────────────────────────────────────
   if (category !== 'all' && result.length > 0) {
     const { data: catTraders } = await supabase
       .from('trades')
@@ -38,7 +46,7 @@ export async function GET(req: NextRequest) {
     result = result.filter(t => catIds.has(t.id))
   }
 
-  // ── Fetch markets_traded count for each trader ───────────────────────────────
+  // ── Fetch markets_traded count ──────────────────────────────────────────────
   if (result.length > 0) {
     const traderIds = result.map(t => t.id)
     const { data: marketCounts } = await supabase
@@ -54,17 +62,17 @@ export async function GET(req: NextRequest) {
       }
       result = result.map(t => ({
         ...t,
-        markets_traded: countMap.get(t.id)?.size ?? 0,
+        markets_traded: countMap.get(t.id)?.size ?? (t.markets_traded ?? 0),
       }))
     }
   }
 
-  // ── Assign clean sequential ranks and period-specific fields ─────────────────
+  // ── Assign ranks and period-specific fields ─────────────────────────────────
   result = result.map((t, i) => ({
     ...t,
     period_rank: i + 1,
-    period_pnl: t[pnlCol] ?? 0,
-    period_volume: t[volCol] ?? 0,
+    period_pnl: (t as Record<string, unknown>)[pnlCol] ?? t.total_pnl ?? 0,
+    period_volume: (t as Record<string, unknown>)[volCol] ?? t.total_volume ?? 0,
   }))
 
   return NextResponse.json({ traders: result, window: timeWindow })
