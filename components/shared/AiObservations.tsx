@@ -15,11 +15,11 @@ function lsKey(page: string, filters: Record<string, string>) {
 // Exported so it can be used as the `loading` fallback in dynamic()
 export function AiObservationsSkeleton() {
   return (
-    <div className="card overflow-hidden mb-6">
-      <div className="px-6 py-3 border-b border-[#E8E8E8] bg-[#F7F7F7] flex items-center justify-between">
-        <span className="text-[12px] font-medium text-[#8C8C8C] uppercase tracking-wide">AI Observations</span>
+    <div className="mb-6">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[15px] font-bold text-[#0D0D0D]">AI Observations</span>
       </div>
-      <div className="px-6 py-4 flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
         <div className="skeleton h-[14px] w-full rounded" />
         <div className="skeleton h-[14px] w-5/6 rounded" />
         <div className="skeleton h-[14px] w-4/5 rounded" />
@@ -114,10 +114,10 @@ export function AiObservations({ page, filters, dataSummary }: AiObservationsPro
   const showSkeleton = !hasContent && !error
 
   return (
-    <div className="card overflow-hidden mb-6">
-      {/* Header — matches leaderboard table header style */}
-      <div className="px-6 py-3 border-b border-[#E8E8E8] bg-[#F7F7F7] flex items-center justify-between">
-        <span className="text-[12px] font-medium text-[#8C8C8C] uppercase tracking-wide">AI Observations</span>
+    <div className="mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[15px] font-bold text-[#0D0D0D]">AI Observations</span>
         {refreshing && (
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="text-[#8C8C8C] animate-spin shrink-0">
             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeDasharray="40 20" />
@@ -134,7 +134,7 @@ export function AiObservations({ page, filters, dataSummary }: AiObservationsPro
       </div>
 
       {/* Content */}
-      <div className="px-6 py-4 flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
         {showSkeleton ? (
           <>
             <div className="skeleton h-[14px] w-full rounded" />
@@ -149,7 +149,7 @@ export function AiObservations({ page, filters, dataSummary }: AiObservationsPro
             .map(l => l.trim())
             .filter(Boolean)
             .map((line, i) => (
-              <p key={i} className="text-[13px] text-[#0D0D0D] leading-relaxed">
+              <p key={i} className="text-[15px] text-[#8C8C8C] leading-relaxed">
                 {line}
               </p>
             ))
