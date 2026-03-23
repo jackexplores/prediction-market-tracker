@@ -35,7 +35,7 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
   const [category, setCategory] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'pnl' | 'volume' | 'markets_traded'>('pnl')
   const [loading, setLoading] = useState(false)
-  const [rotated, setRotated] = useState(false)
+  const [rotateDeg, setRotateDeg] = useState(0)
   const abortRef = useRef<AbortController | null>(null)
 
   const fetchTraders = useCallback(async () => {
@@ -109,7 +109,7 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
 
             {/* Refresh button */}
             <button
-              onClick={() => { setRotated(r => !r); fetchTraders() }}
+              onClick={() => { setRotateDeg(d => d + 180); fetchTraders() }}
               disabled={loading}
               className="ml-auto shrink-0 flex items-center gap-1.5 text-[13px] font-medium text-[#8C8C8C] hover:text-[#0D0D0D] transition-colors disabled:opacity-40"
               title="Refresh"
@@ -117,7 +117,7 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
               <svg
                 width="15" height="15" viewBox="0 0 24 24" fill="none"
                 className="refresh-icon"
-                style={{ transform: `rotate(${rotated ? 180 : 0}deg)` }}
+                style={{ transform: `rotate(${rotateDeg}deg)` }}
               >
                 <path d="M21 12a9 9 0 0 0-15.39-6.36L3 3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
                 <path d="M3 3v5h5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
