@@ -73,11 +73,12 @@ export async function getEvents(limit = 100, offset = 0) {
   return Array.isArray(data) ? data : (data.data ?? [])
 }
 
-export function detectCategory(tags: string[], title: string): string {
-  const text = (tags?.join(' ') + ' ' + title).toLowerCase()
-  if (text.match(/crypto|bitcoin|btc|eth|solana|defi|nft|blockchain/)) return 'Crypto'
-  if (text.match(/election|president|congress|senate|vote|politics|government|democrat|republican/)) return 'Politics'
-  if (text.match(/nfl|nba|mlb|nhl|soccer|football|basketball|baseball|sport|champion|league|world cup/)) return 'Sports'
-  if (text.match(/gdp|inflation|fed|interest rate|economy|market|stock|cpi|recession/)) return 'Economics'
+export function detectCategory(tags: string[], title: string, slug = ''): string {
+  const text = (tags?.join(' ') + ' ' + title + ' ' + slug).toLowerCase()
+  if (/btc|eth|sol|crypto|bitcoin|ethereum|solana|defi|nft|token|coin|matic|avax|doge|blockchain/.test(text)) return 'Crypto'
+  if (/elect|president|congress|senate|vote|democrat|republican|primary|governor|government|politics/.test(text)) return 'Politics'
+  if (/^(nba|nfl|mlb|nhl|cbb|ncaa|soccer|epl|ucl|mls|ufc|f1|pga|cfb)-/.test(slug) ||
+      /nfl|nba|mlb|nhl|soccer|football|basketball|baseball|sport|champion|league|world cup|spread|moneyline|over\/under|o\/u/.test(text)) return 'Sports'
+  if (/gdp|inflation|fed|interest rate|economy|stock|cpi|recession/.test(text)) return 'Economics'
   return 'Other'
 }
