@@ -244,18 +244,18 @@ function TradeCard({ trade }: { trade: Trade }) {
 
   return (
     <div className={cn(
-      'card px-5 py-4 flex items-center gap-4',
+      'card px-4 sm:px-5 py-3 sm:py-4 flex flex-wrap sm:flex-nowrap items-center gap-x-4 gap-y-2',
       isBuy ? 'side-bar-buy' : 'side-bar-sell',
       isBuy ? 'bg-profit-subtle' : 'bg-loss-subtle'
     )}>
-      {/* Avatar + trader */}
+      {/* Avatar + trader — full width on mobile, fixed width on sm+ */}
       <Link
         href={`/traders/${trader?.wallet_address ?? ''}`}
-        className="flex items-center gap-2.5 min-w-0 w-40 shrink-0 group"
+        className="flex items-center gap-2.5 min-w-0 w-full sm:w-40 sm:shrink-0 group"
         onClick={e => e.stopPropagation()}
       >
         <TraderMiniAvatar trader={trader} />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1">
             <span className="text-[13px] font-semibold text-[#0D0D0D] truncate group-hover:underline">
               {trader?.username ?? truncateWallet(trader?.wallet_address ?? '')}
@@ -268,11 +268,25 @@ function TradeCard({ trade }: { trade: Trade }) {
             </span>
           )}
         </div>
+        {/* Size shown inline with trader on mobile only */}
+        <div className={cn('sm:hidden ml-auto text-right shrink-0', isBuy ? 'text-[#00C805]' : 'text-[#FF5000]')}>
+          <div className="text-[14px] font-bold">
+            {trade.usdc_size != null ? formatCurrency(trade.usdc_size, true) : '—'}
+          </div>
+          {trade.outcome && (
+            <div className={cn(
+              'text-[10px] font-bold px-1 py-0.5 rounded text-center',
+              isBuy ? 'bg-[#00C805]/10' : 'bg-[#FF5000]/10'
+            )}>
+              {isBuy ? 'BUY' : 'SELL'}
+            </div>
+          )}
+        </div>
       </Link>
 
-      {/* Market */}
-      <div className="flex-1 min-w-0">
-        <p className="text-[14px] font-medium text-[#0D0D0D] truncate leading-snug">
+      {/* Market — full width on mobile (wraps below trader row) */}
+      <div className="flex-1 min-w-0 w-full sm:w-auto">
+        <p className="text-[13px] sm:text-[14px] font-medium text-[#0D0D0D] truncate leading-snug">
           {trade.market_title ?? trade.market_slug}
         </p>
         <div className="flex items-center gap-2 mt-0.5">
@@ -292,16 +306,16 @@ function TradeCard({ trade }: { trade: Trade }) {
         </div>
       </div>
 
-      {/* Price */}
-      <div className="shrink-0 text-right w-16">
+      {/* Price — desktop only */}
+      <div className="hidden sm:block shrink-0 text-right w-16">
         <div className="text-[14px] font-semibold text-[#0D0D0D]">
           {trade.price != null ? `${(trade.price * 100).toFixed(0)}¢` : '—'}
         </div>
         <div className="text-[11px] text-[#8C8C8C]">price</div>
       </div>
 
-      {/* Size */}
-      <div className="shrink-0 text-right w-20">
+      {/* Size — desktop only (shown inline on mobile) */}
+      <div className="hidden sm:block shrink-0 text-right w-20">
         <div className={cn(
           'text-[15px] font-bold',
           isBuy ? 'text-[#00C805]' : 'text-[#FF5000]'
@@ -311,7 +325,7 @@ function TradeCard({ trade }: { trade: Trade }) {
         <div className="text-[11px] text-[#8C8C8C]">size</div>
       </div>
 
-      {/* Time */}
+      {/* Time — desktop only */}
       <div className="shrink-0 text-right w-16 hidden sm:block">
         <div className="text-[12px] text-[#8C8C8C]">{timeAgo(trade.timestamp)}</div>
       </div>

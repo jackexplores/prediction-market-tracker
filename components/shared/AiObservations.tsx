@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
+import { Shimmer } from '@/components/shared/Shimmer'
 
 interface AiObservationsProps {
   page: 'leaderboard' | 'trades'
@@ -16,7 +17,7 @@ function lsKey(page: string, filters: Record<string, string>) {
 export function AiObservationsSkeleton() {
   return (
     <div className="mb-6">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center gap-2 mb-3">
         <span className="text-[15px] font-bold text-[#0D0D0D]">AI Observations</span>
       </div>
       <div className="flex flex-col gap-3">
@@ -116,7 +117,7 @@ export function AiObservations({ page, filters, dataSummary }: AiObservationsPro
   return (
     <div className="mb-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center gap-2 mb-3">
         <span className="text-[15px] font-bold text-[#0D0D0D]">AI Observations</span>
         {refreshing && (
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="text-[#8C8C8C] animate-spin shrink-0">
@@ -148,11 +149,17 @@ export function AiObservations({ page, filters, dataSummary }: AiObservationsPro
             .split('\n')
             .map(l => l.trim())
             .filter(Boolean)
-            .map((line, i) => (
-              <p key={i} className="text-[15px] text-[#8C8C8C] leading-relaxed">
-                {line}
-              </p>
-            ))
+            .map((line, i) =>
+              refreshing ? (
+                <Shimmer key={i} className="text-[15px] leading-relaxed">
+                  {line}
+                </Shimmer>
+              ) : (
+                <p key={i} className="text-[15px] text-[#8C8C8C] leading-relaxed">
+                  {line}
+                </p>
+              )
+            )
         )}
       </div>
     </div>

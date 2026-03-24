@@ -153,7 +153,7 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
         ) : (
           <div className="card overflow-hidden">
             {/* Table header */}
-            <div className="grid grid-cols-[48px_1fr_140px_140px_100px_100px_80px] gap-4 px-6 py-3 border-b border-[#E8E8E8] bg-[#F7F7F7]">
+            <div className="grid grid-cols-[28px_1fr_80px] md:grid-cols-[48px_1fr_140px_140px_100px_100px_80px] gap-3 md:gap-4 px-4 md:px-6 py-3 border-b border-[#E8E8E8] bg-[#F7F7F7]">
               <span className="text-[12px] font-medium text-[#8C8C8C] uppercase tracking-wide">#</span>
               <span className="text-[12px] font-medium text-[#8C8C8C] uppercase tracking-wide">Trader</span>
               <button
@@ -168,7 +168,7 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
               <button
                 onClick={() => setSortBy('volume')}
                 className={cn(
-                  'text-[12px] font-medium uppercase tracking-wide text-left transition-colors',
+                  'hidden md:block text-[12px] font-medium uppercase tracking-wide text-left transition-colors',
                   sortBy === 'volume' ? 'text-[#0D0D0D]' : 'text-[#8C8C8C]'
                 )}
               >
@@ -177,16 +177,16 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
               <button
                 onClick={() => setSortBy('markets_traded')}
                 className={cn(
-                  'text-[12px] font-medium uppercase tracking-wide text-left transition-colors',
+                  'hidden md:block text-[12px] font-medium uppercase tracking-wide text-left transition-colors',
                   sortBy === 'markets_traded' ? 'text-[#0D0D0D]' : 'text-[#8C8C8C]'
                 )}
               >
                 Markets {sortBy === 'markets_traded' && '↓'}
               </button>
-              <span className="text-[12px] font-medium text-[#8C8C8C] uppercase tracking-wide hidden md:block">
+              <span className="hidden md:block text-[12px] font-medium text-[#8C8C8C] uppercase tracking-wide">
                 Trend
               </span>
-              <span className="text-[12px] font-medium text-[#8C8C8C] uppercase tracking-wide hidden lg:block">
+              <span className="hidden lg:block text-[12px] font-medium text-[#8C8C8C] uppercase tracking-wide">
                 Active
               </span>
             </div>
@@ -203,24 +203,24 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
                   key={trader.id}
                   href={`/traders/${trader.wallet_address}`}
                   className={cn(
-                    'grid grid-cols-[48px_1fr_140px_140px_100px_100px_80px] gap-4 px-6 py-4 items-center table-row-hover border-b border-[#E8E8E8] last:border-0 transition-colors',
+                    'grid grid-cols-[28px_1fr_80px] md:grid-cols-[48px_1fr_140px_140px_100px_100px_80px] gap-3 md:gap-4 px-4 md:px-6 py-4 items-center table-row-hover border-b border-[#E8E8E8] last:border-0 transition-colors',
                     isTop10 && 'bg-[#FAFFF9]'
                   )}
                 >
                   {/* Rank */}
                   <span className={cn(
-                    'text-[15px] font-bold tabular-nums',
+                    'text-[14px] md:text-[15px] font-bold tabular-nums',
                     isTop10 ? 'text-[#0D0D0D]' : 'text-[#8C8C8C]'
                   )}>
                     {rank}
                   </span>
 
                   {/* Trader */}
-                  <div className="flex items-center gap-3 min-w-0">
-                    <TraderAvatar trader={trader} size={36} />
+                  <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                    <TraderAvatar trader={trader} size={32} />
                     <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[14px] font-semibold text-[#0D0D0D] truncate">
+                      <div className="flex items-center gap-1 md:gap-1.5 flex-wrap">
+                        <span className="text-[13px] md:text-[14px] font-semibold text-[#0D0D0D] truncate">
                           {trader.username ?? truncateWallet(trader.wallet_address)}
                         </span>
                         {trader.verified && (
@@ -232,7 +232,7 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
                           </span>
                         )}
                       </div>
-                      <span className="text-[12px] text-[#8C8C8C] font-mono">
+                      <span className="text-[11px] md:text-[12px] text-[#8C8C8C] font-mono hidden sm:block">
                         {truncateWallet(trader.wallet_address)}
                       </span>
                     </div>
@@ -243,7 +243,7 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
                     {(() => {
                       const displayPnl = isPeriod ? (trader.period_pnl ?? trader.total_pnl) : trader.total_pnl
                       return (
-                        <span className={cn('text-[15px] font-bold tabular-nums', pnlColor(displayPnl))}>
+                        <span className={cn('text-[13px] md:text-[15px] font-bold tabular-nums', pnlColor(displayPnl))}>
                           {displayPnl >= 0 ? '+' : ''}{formatCurrency(displayPnl, true)}
                         </span>
                       )
@@ -251,12 +251,12 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
                   </div>
 
                   {/* Volume */}
-                  <span className="text-[14px] text-[#0D0D0D] tabular-nums font-medium">
+                  <span className="hidden md:block text-[14px] text-[#0D0D0D] tabular-nums font-medium">
                     {formatCurrency(displayVolume, true)}
                   </span>
 
                   {/* Markets traded */}
-                  <span className="text-[14px] text-[#0D0D0D] tabular-nums font-medium">
+                  <span className="hidden md:block text-[14px] text-[#0D0D0D] tabular-nums font-medium">
                     {(trader.markets_traded ?? 0).toLocaleString()}
                   </span>
 
@@ -265,8 +265,8 @@ export function LeaderboardClient({ initialTraders }: LeaderboardClientProps) {
                     <Sparkline traderId={trader.id} positive={trader.total_pnl >= 0} />
                   </div>
 
-                  {/* Last active */}
-                  <span className="text-[12px] text-[#8C8C8C] hidden lg:block">
+                  {/* Last active — suppressed to avoid SSR/client hydration mismatch */}
+                  <span suppressHydrationWarning className="text-[12px] text-[#8C8C8C] hidden lg:block">
                     {timeAgo(trader.last_synced_at)}
                   </span>
                 </Link>
